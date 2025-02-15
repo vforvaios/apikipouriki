@@ -1,0 +1,40 @@
+{
+  "parser": "babel-eslint",
+  "extends": ["standard", "airbnb", "prettier"],
+  "plugins": ["babel", "promise", "prettier", "react"],
+  "env": {
+    "browser": true,
+    "es6": true
+  },
+  "globals": {
+    "__DEV__": false,
+    "__TEST__": false,
+    "__PROD__": false,
+    "__DEBUG__": false,
+    "__COVERAGE__": false,
+    "__BASENAME__": false
+  },
+  "parserOptions": {
+    "ecmaVersion": 2016,
+    "sourceType": "module"
+  },
+  "rules": {
+    "react/jsx-filename-extension": [1, { "extensions": [".js", ".jsx"] }],
+    "arrow-parens": 0,
+    "import/no-named-as-default": 0,
+    "no-param-reassign": 0,
+    "import/no-extraneous-dependencies": 0,
+    "import/no-unresolved": 0,
+    "import/extensions": 0,
+    "no-shadow": 0,
+    "import/prefer-default-export": 0,
+    "import/no-webpack-loader-syntax": 0,
+    "no-console": 0,
+    "react/prop-types": 0,
+    "no-debugger": 0,
+    "no-use-before-define": [
+      "error",
+      { "variables": false, "functions": false }
+    ]
+  }
+}
