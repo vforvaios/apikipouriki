@@ -18,8 +18,8 @@ const loginUser = async (req, res, next) => {
     const [
       userInDb,
     ] = await db.query(
-      `SELECT username, password, isActive FROM users WHERE email=? AND isAdmin=?`,
-      [username, 0],
+      `SELECT username, password, isActive FROM users WHERE username=? AND isActive=?`,
+      [username, 1],
     );
 
     if (!userInDb?.[0]?.isActive) {
@@ -46,12 +46,35 @@ const loginUser = async (req, res, next) => {
         },
       );
     } else {
-      res.sendStatus(401);
+      console.log('=====================');
+      res.status(401).json({
+        error: 'Ο χρήστης σας είναι απενεργοποιημένος. Παρακαλώ επικοινωνήστε μαζί μας.',
+      });
     }
   } catch (error) {
-    res.sendStatus(401);
+    res.status(401).json({
+      error: 'Ο χρήστης σας είναι απενεργοποιημένος. Παρακαλώ επικοινωνήστε μαζί μας.',
+    });
     next(error);
   }
 };
 
-module.exports = { loginUser };
+const registerUser = async (req, res, next) => {
+  try {
+    console.log(req.body);
+    const { password, username } = req.body;
+
+    const salt = await bcrypt.genSalt(12);
+    const hashPassword = await bcrypt.hash(password, salt);
+
+    const sql = `INSERT INTO users(username, password, isActive) VALUES (?,?,?)`;
+    await db.query(sql, [username, hashPassword, 1]);
+
+    res.status(200).json({ message: 'Η εγγραφή ολοκληρώθηκε επιτυχώς!' });
+  } catch (error) {
+    console.log(error);
+    next(error);
+  }
+};
+
+module.exports = { loginUser, registerUser };
