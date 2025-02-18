@@ -17,10 +17,11 @@ app.use(
 
 // routes
 const loginRoute = require('./routes/login');
+const datesRoute = require('./routes/dates');
 
 app.use('/api/login', loginRoute);
+app.use('/api/dates', datesRoute);
 app.use('/images', express.static('images'));
-
 
 app.use(errorHandler);
 
