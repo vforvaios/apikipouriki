@@ -1,6 +1,4 @@
-const bcrypt = require('bcrypt');
 const db = require('../services/db');
-const config = require('../config');
 require('dotenv').config();
 
 const getLastDates = async (req, res, next) => {
