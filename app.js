@@ -18,9 +18,11 @@ app.use(
 // routes
 const loginRoute = require('./routes/login');
 const datesRoute = require('./routes/dates');
+const draggableItemsRoute = require('./routes/draggableItems');
 
 app.use('/api/login', loginRoute);
 app.use('/api/dates', datesRoute);
+app.use('/api/draggable-items', draggableItemsRoute);
 app.use('/images', express.static('images'));
 
 app.use(errorHandler);
