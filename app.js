@@ -18,10 +18,12 @@ app.use(
 // routes
 const loginRoute = require('./routes/login');
 const datesRoute = require('./routes/dates');
+const carsRoute = require('./routes/cars');
 const draggableItemsRoute = require('./routes/draggableItems');
 const schedulesRoute = require('./routes/schedulesRoute');
 
 app.use('/api/login', loginRoute);
+app.use('/api/cars', carsRoute);
 app.use('/api/dates', datesRoute);
 app.use('/api/draggable-items', draggableItemsRoute);
 app.use('/api/schedules', schedulesRoute);
