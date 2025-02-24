@@ -1,6 +1,19 @@
 const db = require('../services/db');
 require('dotenv').config();
 
+const sortByDayByCar = (arr) => {
+  const sortedByDay = arr.reduce(
+    (acc, curr) => ({
+      ...acc,
+      [curr.numberOfDay]: arr
+        .filter((itm) => itm.numberOfDay === curr.numberOfDay)
+        .sort((a, b) => a.carId - b.carId),
+    }),
+    {},
+  );
+  return sortedByDay;
+};
+
 const getCurrentSchedule = async (req, res, next) => {
   try {
     const [currentDates] = await db.query(
@@ -68,8 +81,10 @@ const getCurrentSchedule = async (req, res, next) => {
       };
     });
 
-    res.status(200).json({ currentSchedule: newCurrentSchedule });
-  } catch (error) {}
+    res.status(200).json({ currentSchedule: sortByDayByCar(newCurrentSchedule) });
+  } catch (error) {
+    next(error);
+  }
 };
 
 module.exports = { getCurrentSchedule };
