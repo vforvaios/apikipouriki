@@ -1,19 +1,6 @@
 const db = require('../services/db');
 require('dotenv').config();
 
-const sortByDayByCar = (arr) => {
-  const sortedByDay = arr.reduce(
-    (acc, curr) => ({
-      ...acc,
-      [curr.numberOfDay]: arr
-        .filter((itm) => itm.numberOfDay === curr.numberOfDay)
-        .sort((a, b) => a.carId - b.carId),
-    }),
-    {},
-  );
-  return sortedByDay;
-};
-
 const getCurrentSchedule = async (req, res, next) => {
   try {
     const [currentDates] = await db.query(
@@ -28,60 +15,68 @@ const getCurrentSchedule = async (req, res, next) => {
 
     const [currentSchedule] = await db.query(
       `
-        SELECT distinct s.id, s.datesId, 
-               sd.carId as car, sd.numberOfDay, sd.draggableItemIds as drivers, 
-               sr.draggableItemIds as regions
-        FROM schedules s
-        INNER JOIN schedule_drivers sd ON sd.scheduleId = s.id
-        INNER JOIN schedule_regions sr ON sr.scheduleId = s.id
-        WHERE datesId=?
-        `,
+      SELECT distinct s.id, s.datesId, 
+      sd.carId as car, sd.numberOfDay, sd.draggableItemIds as drivers, 
+      sr.draggableItemIds as regions
+      FROM schedules s
+      INNER JOIN schedule_drivers sd ON sd.scheduleId = s.id
+      INNER JOIN schedule_regions sr ON sr.scheduleId = s.id
+      WHERE datesId=?
+      `,
       [dateId],
     );
 
-    let drivers = [];
-    let regions = [];
-    const getAllRelevantDrivers = currentSchedule.map(async (sched, index) => {
-      const [itmDrivers] = await db.query(
-        `
-          SELECT * FROM draggable_items WHERE id IN (${sched.drivers
-            .split(',')
-            ?.map((reg) => reg.toString())
-            .join()})`,
-      );
+    let newReturnedData = {};
 
-      drivers.push(...itmDrivers);
-    });
+    const newObjByDayAndByCar = await currentSchedule.reduce(async (accPromise, curr) => {
+      const acc = await accPromise; // Wait for previous accumulator to resolve
 
-    const getAllRelevantRegions = currentSchedule.map(async (sched, index) => {
-      const [itmRegions] = await db.query(
-        `
-          SELECT * FROM draggable_items WHERE id IN (${sched.regions
-            .split(',')
-            ?.map((reg) => reg.toString())
-            .join()})`,
-      );
-      regions.push(...itmRegions);
-    });
+      const filteredDays = currentSchedule
+        .filter((day) => day.numberOfDay === curr.numberOfDay)
+        .sort((a, b) => a.numberOfDay - b.numberOfDay);
 
-    await Promise.all(getAllRelevantDrivers);
-    await Promise.all(getAllRelevantRegions);
+      const carsData = await filteredDays.reduce(async (acc2Promise, curr2) => {
+        const acc2 = await acc2Promise; // Wait for previous accumulator to resolve
 
-    const newCurrentSchedule = currentSchedule.map((currSched) => {
-      const currDrivers = currSched.drivers.split(',').map((itm) => Number(itm));
-      const currRegions = currSched.regions.split(',').map((itm) => Number(itm));
+        // Fetch drivers
+        const drivers = await Promise.all(
+          curr2.drivers.split(',').map(async (driver) => {
+            const [result] = await db.query(
+              `SELECT * FROM draggable_items WHERE id = ?`,
+              [Number(driver)],
+            );
+            return result?.[0]; // Fallback object
+          }),
+        );
+
+        // Fetch regions
+        const regions = await Promise.all(
+          curr2.regions.split(',').map(async (region) => {
+            const [result] = await db.query(
+              `SELECT * FROM draggable_items WHERE id = ?`,
+              [Number(region)],
+            );
+            return result?.[0]; // Fallback object
+          }),
+        );
+
+        return {
+          ...acc2,
+          cars: {
+            ...acc2.cars,
+            [curr2.car]: { drivers, regions },
+          },
+        };
+      }, Promise.resolve({}));
+
       return {
-        ...currSched,
-        drivers: Array.from(new Set(drivers.map((obj) => JSON.stringify(obj))))
-          .map((e) => JSON.parse(e))
-          .filter((dr) => currDrivers.includes(dr.id)),
-        regions: Array.from(new Set(regions.map((obj) => JSON.stringify(obj))))
-          .map((e) => JSON.parse(e))
-          .filter((dr) => currRegions.includes(dr.id)),
+        ...acc,
+        [curr.numberOfDay]: carsData,
       };
-    });
+    }, Promise.resolve({}));
+    newReturnedData = { ...newReturnedData, days: newObjByDayAndByCar };
 
-    res.status(200).json({ currentSchedule: sortByDayByCar(newCurrentSchedule) });
+    res.status(200).json({ currentSchedule: newReturnedData });
   } catch (error) {
     next(error);
   }
