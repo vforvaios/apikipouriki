@@ -37,7 +37,7 @@ const loginUser = async (req, res, next) => {
       jwt.sign(
         { user },
         process.env.API_SECRET_KEY || '',
-        { expiresIn: '1h' },
+        { expiresIn: '2h' },
         (err, token) => {
           res.status(200).json({
             userLoggedIn: { username: user },

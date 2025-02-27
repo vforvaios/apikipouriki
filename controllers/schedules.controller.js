@@ -1,4 +1,7 @@
 const db = require('../services/db');
+const config = require('../config');
+const { ADDNEWITEMTOSCHEDULE } = require('../schemas/schedules.schema');
+
 require('dotenv').config();
 
 const getCurrentSchedule = async (req, res, next) => {
@@ -88,11 +91,12 @@ const getCurrentSchedule = async (req, res, next) => {
 
 const addDraggableItemInCurrentSchedule = async (req, res, next) => {
   try {
-    // const { value, error } = CHANGEPASSWORDSCHEMA.validate(req.body);
-    // if (error) {
-    //   res.status(500).json({ error: config.messages.error });
-    //   return false;
-    // }
+    console.log(req.body);
+    const { value, error } = ADDNEWITEMTOSCHEDULE.validate(req.body);
+    if (error) {
+      res.status(500).json({ error });
+      return false;
+    }
     // const { password } = req.body;
     // const { user } = req.authData;
     // const salt = await bcrypt.genSalt();
