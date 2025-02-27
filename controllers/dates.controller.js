@@ -23,16 +23,25 @@ const getLastDates = async (req, res, next) => {
 };
 
 const scheduleAdditionOfNewDates = async (req, res, next) => {
+  let conn = await db.getConnection();
+
   try {
     const now = new Date();
-    const [secondFridayOfTheTwoWeeks] = await db.query(
+    const [secondFridayOfTheTwoWeeks] = await conn.query(
       `
-        SELECT startDate2 
+        SELECT id, startDate2 
          FROM dates WHERE isActive=?
          ORDER BY id desc 
          LIMIT 1
         `,
       [1],
+    );
+
+    const [currentScheduleId] = await conn.query(
+      `
+        SELECT id FROM schedules WHERE datesId=?
+      `,
+      [secondFridayOfTheTwoWeeks?.[0]?.id],
     );
 
     const lastMondayInDb = new Date(secondFridayOfTheTwoWeeks?.[0]?.startDate2);
@@ -45,18 +54,80 @@ const scheduleAdditionOfNewDates = async (req, res, next) => {
     const secondUpcomingMonday = new Date(
       lastMondayInDb.setDate(lastMondayInDb.getDate() + 7),
     );
+
     if (new Date(temp).getTime() <= now.getTime()) {
-      await db.query(
+      const [
+        datesRecord,
+      ] = await conn.query(
         `INSERT INTO dates(startDate1, startDate2, isActive) VALUES(?,?,?)`,
         [firstUpcomingMonday, secondUpcomingMonday, 1],
       );
+
+      const lastInsertedDatesId = datesRecord.insertId;
+
+      const [insertIntoScheduleTable] = await conn.query(
+        `
+          INSERT INTO schedule(datesId) VALUES(?)
+        `,
+        [lastInsertedDatesId],
+      );
+
+      const lastInsertedScheduleId = insertIntoScheduleTable.insertId;
+
+      // INSERT BATCH RECORDS TO SCHEDULE_DRIVERS TABLE
+      const [
+        rowsToBeCopiedToScheduleDrivers,
+      ] = await conn.query(`SELECT * FROM schedule_drivers WHERE scheduleId = ?`, [
+        currentScheduleId,
+      ]);
+
+      const insertQueryIntoScheduleDrivers =
+        'INSERT INTO schedule_drivers (scheduleId, carId, numberOfDay, draggableItemIds) VALUES ?';
+
+      const valuesToBeInsertedToScheduleDrivers = rowsToBeCopiedToScheduleDrivers.map(
+        (row) => {
+          const { carId, numberOfDay, draggableItemIds } = row;
+          return [lastInsertedScheduleId, carId, numberOfDay, draggableItemIds];
+        },
+      );
+
+      await conn.query(insertQueryIntoScheduleDrivers, [
+        valuesToBeInsertedToScheduleDrivers,
+      ]);
+
+      // INSERT BATCH RECORDS TO SCHEDULE_REGIONS TABLE
+      const [
+        rowsToBeCopiedToScheduleRegions,
+      ] = await conn.query(`SELECT * FROM schedule_regions WHERE scheduleId = ?`, [
+        currentScheduleId,
+      ]);
+
+      const insertQueryIntoScheduleRegions =
+        'INSERT INTO schedule_regions (scheduleId, carId, numberOfDay, draggableItemIds) VALUES ?';
+
+      const valuesToBeInsertedToScheduleRegions = rowsToBeCopiedToScheduleRegions.map(
+        (row) => {
+          const { carId, numberOfDay, draggableItemIds } = row;
+          return [lastInsertedScheduleId, carId, numberOfDay, draggableItemIds];
+        },
+      );
+
+      await conn.query(insertQueryIntoScheduleRegions, [
+        valuesToBeInsertedToScheduleRegions,
+      ]);
     }
+
+    await conn.commit();
+
     res.sendStatus(200);
   } catch (error) {
+    await conn.rollback();
     res.status(401).json({
       error,
     });
     next(error);
+  } finally {
+    conn.release();
   }
 };
 
