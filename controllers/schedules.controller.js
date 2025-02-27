@@ -74,7 +74,11 @@ const getCurrentSchedule = async (req, res, next) => {
         [curr.numberOfDay]: carsData,
       };
     }, Promise.resolve({}));
-    newReturnedData = { ...newReturnedData, days: newObjByDayAndByCar };
+    newReturnedData = {
+      ...newReturnedData,
+      scheduleId: currentSchedule?.[0]?.id,
+      days: newObjByDayAndByCar,
+    };
 
     res.status(200).json({ currentSchedule: newReturnedData });
   } catch (error) {
@@ -82,4 +86,29 @@ const getCurrentSchedule = async (req, res, next) => {
   }
 };
 
-module.exports = { getCurrentSchedule };
+const addDraggableItemInCurrentSchedule = async (req, res, next) => {
+  try {
+    // const { value, error } = CHANGEPASSWORDSCHEMA.validate(req.body);
+    // if (error) {
+    //   res.status(500).json({ error: config.messages.error });
+    //   return false;
+    // }
+    // const { password } = req.body;
+    // const { user } = req.authData;
+    // const salt = await bcrypt.genSalt();
+    // const hashPassword = await bcrypt.hash(password, salt);
+    // await db.query(
+    //   `
+    // UPDATE users SET password=? WHERE username=? AND isAdmin=?
+    // `,
+    //   [hashPassword, user, 0],
+    // );
+    // res.status(200).json({ message: 'Ο κωδικός σας άλλαξε.' });
+    res.sendStatus(200);
+  } catch (error) {
+    res.status(500).json({ error: 'Κάτι πήγε στραβά.' });
+    next(error);
+  }
+};
+
+module.exports = { getCurrentSchedule, addDraggableItemInCurrentSchedule };
