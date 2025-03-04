@@ -16,17 +16,45 @@ const getCurrentSchedule = async (req, res, next) => {
 
     const dateId = currentDates?.[0]?.id;
 
-    const [currentSchedule] = await db.query(
+    const [latestSchedule] = await db.query(
       `
-      SELECT distinct s.id, s.datesId, 
-      sd.carId as car, sd.numberOfDay, sd.draggableItemIds as drivers, 
-      sr.draggableItemIds as regions
-      FROM schedules s
-      INNER JOIN schedule_drivers sd ON sd.scheduleId = s.id
-      INNER JOIN schedule_regions sr ON sr.scheduleId = s.id
-      WHERE datesId=?
+       SELECT id FROM schedules WHERE datesId=?
       `,
       [dateId],
+    );
+
+    const [currentSchedule] = await db.query(
+      `
+      SELECT 
+          COALESCE(sd.scheduleId, sr.scheduleId) AS scheduleId,
+          COALESCE(sd.carId, sr.carId) AS carId,
+          COALESCE(sd.numberOfDay, sr.numberOfDay) AS numberOfDay,
+          COALESCE(sd.draggableItemIds, '') AS drivers,
+          COALESCE(sr.draggableItemIds, '') AS regions
+      FROM schedule_drivers sd
+      LEFT JOIN schedule_regions sr 
+          ON sd.scheduleId = sr.scheduleId 
+          AND sd.carId = sr.carId 
+          AND sd.numberOfDay = sr.numberOfDay
+      WHERE sd.scheduleId = ?
+
+      UNION
+
+      SELECT 
+          COALESCE(sd.scheduleId, sr.scheduleId) AS scheduleId,
+          COALESCE(sd.carId, sr.carId) AS carId,
+          COALESCE(sd.numberOfDay, sr.numberOfDay) AS numberOfDay,
+          COALESCE(sd.draggableItemIds, '') AS drivers,
+          COALESCE(sr.draggableItemIds, '') AS regions
+      FROM schedule_regions sr
+      LEFT JOIN schedule_drivers sd 
+          ON sr.scheduleId = sd.scheduleId 
+          AND sr.carId = sd.carId 
+          AND sr.numberOfDay = sd.numberOfDay
+      WHERE sr.scheduleId = ?
+
+      `,
+      [latestSchedule?.[0]?.id, latestSchedule?.[0]?.id],
     );
 
     let newReturnedData = {};
@@ -48,7 +76,7 @@ const getCurrentSchedule = async (req, res, next) => {
               `SELECT * FROM draggable_items WHERE id = ?`,
               [Number(driver)],
             );
-            return result?.[0]; // Fallback object
+            return result?.[0] ? result?.[0] : []; // Fallback object
           }),
         );
 
@@ -59,7 +87,7 @@ const getCurrentSchedule = async (req, res, next) => {
               `SELECT * FROM draggable_items WHERE id = ?`,
               [Number(region)],
             );
-            return result?.[0]; // Fallback object
+            return result?.[0] ? result?.[0] : []; // Fallback object
           }),
         );
 
@@ -67,7 +95,7 @@ const getCurrentSchedule = async (req, res, next) => {
           ...acc2,
           cars: {
             ...acc2.cars,
-            [curr2.car]: { drivers, regions },
+            [curr2.carId]: { drivers: drivers?.flat(), regions: regions?.flat() },
           },
         };
       }, Promise.resolve({}));
@@ -77,9 +105,10 @@ const getCurrentSchedule = async (req, res, next) => {
         [curr.numberOfDay]: carsData,
       };
     }, Promise.resolve({}));
+
     newReturnedData = {
       ...newReturnedData,
-      scheduleId: currentSchedule?.[0]?.id,
+      scheduleId: currentSchedule?.[0]?.scheduleId,
       days: newObjByDayAndByCar,
     };
 
@@ -97,6 +126,34 @@ const addDraggableItemInCurrentSchedule = async (req, res, next) => {
       res.status(500).json({ error });
       return false;
     }
+
+    const {
+      scheduleId,
+      day,
+      carId,
+      item: { id, draggableCategory },
+    } = req.body;
+    const tableName = draggableCategory === 1 ? 'schedule_drivers' : 'schedule_regions';
+
+    const [dayAndCarExistsInSchedule] = await db.query(
+      `
+      SELECT * FROM ${tableName} WHERE numberOfDay=? and scheduleId=? and carId=?
+      `,
+      [day, scheduleId, carId],
+    );
+
+    console.log(dayAndCarExistsInSchedule);
+    // IF NO RECORD EXISTS, THEN INSERT
+    if (dayAndCarExistsInSchedule?.length === 0) {
+      const sql =
+        draggableCategory === 1
+          ? 'INSERT INTO schedule_drivers(scheduleId, carId, numberOfDay, draggableItemIds) VALUES(?,?,?,?)'
+          : 'INSERT INTO schedule_regions(scheduleId, carId, numberOfDay, draggableItemIds) VALUES(?,?,?,?)';
+      await db.query(sql, [scheduleId, carId, day, id]);
+    } else {
+      // UPDATE THE EXISTING RECORD
+    }
+
     // const { password } = req.body;
     // const { user } = req.authData;
     // const salt = await bcrypt.genSalt();
@@ -108,7 +165,7 @@ const addDraggableItemInCurrentSchedule = async (req, res, next) => {
     //   [hashPassword, user, 0],
     // );
     // res.status(200).json({ message: 'Ο κωδικός σας άλλαξε.' });
-    res.sendStatus(200);
+    res.status(200).json({ ok: true });
   } catch (error) {
     res.status(500).json({ error: 'Κάτι πήγε στραβά.' });
     next(error);
