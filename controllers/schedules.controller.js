@@ -120,7 +120,6 @@ const getCurrentSchedule = async (req, res, next) => {
 
 const addDraggableItemInCurrentSchedule = async (req, res, next) => {
   try {
-    console.log(req.body);
     const { value, error } = ADDNEWITEMTOSCHEDULE.validate(req.body);
     if (error) {
       res.status(500).json({ error });
@@ -142,7 +141,6 @@ const addDraggableItemInCurrentSchedule = async (req, res, next) => {
       [day, scheduleId, carId],
     );
 
-    console.log(dayAndCarExistsInSchedule);
     // IF NO RECORD EXISTS, THEN INSERT
     if (dayAndCarExistsInSchedule?.length === 0) {
       const sql =
@@ -152,19 +150,32 @@ const addDraggableItemInCurrentSchedule = async (req, res, next) => {
       await db.query(sql, [scheduleId, carId, day, id]);
     } else {
       // UPDATE THE EXISTING RECORD
+      const sqlSelectExistingDraggableItems =
+        draggableCategory === 1
+          ? 'SELECT * FROM schedule_drivers WHERE numberOfday=? AND carId=? AND scheduleId=?'
+          : 'SELECT * FROM schedule_regions WHERE numberOfday=? AND carId=? AND scheduleId=?';
+
+      const [existingRecord] = await db.query(sqlSelectExistingDraggableItems, [
+        day,
+        carId,
+        scheduleId,
+      ]);
+
+      const newDraggableItems = `${existingRecord?.[0]?.draggableItemIds},${id}`;
+
+      const sqlUpdateExistingRecord =
+        draggableCategory === 1
+          ? 'UPDATE schedule_drivers SET draggableItemIds=? WHERE numberOfDay=? AND carId=? AND scheduleId=?'
+          : 'UPDATE schedule_regions SET draggableItemIds=? WHERE numberOfDay=? AND carId=? AND scheduleId=?';
+
+      await db.query(sqlUpdateExistingRecord, [
+        `${newDraggableItems}`,
+        day,
+        carId,
+        existingRecord?.[0]?.scheduleId,
+      ]);
     }
 
-    // const { password } = req.body;
-    // const { user } = req.authData;
-    // const salt = await bcrypt.genSalt();
-    // const hashPassword = await bcrypt.hash(password, salt);
-    // await db.query(
-    //   `
-    // UPDATE users SET password=? WHERE username=? AND isAdmin=?
-    // `,
-    //   [hashPassword, user, 0],
-    // );
-    // res.status(200).json({ message: 'Ο κωδικός σας άλλαξε.' });
     res.status(200).json({ ok: true });
   } catch (error) {
     res.status(500).json({ error: 'Κάτι πήγε στραβά.' });
