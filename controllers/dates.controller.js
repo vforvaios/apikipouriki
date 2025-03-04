@@ -56,6 +56,12 @@ const scheduleAdditionOfNewDates = async (req, res, next) => {
     );
 
     if (new Date(temp).getTime() <= now.getTime()) {
+      await conn.query(
+        `
+        UPDATE dates SET isActive=? WHERE id=?
+        `,
+        [0, secondFridayOfTheTwoWeeks?.[0]?.id],
+      );
       const [
         datesRecord,
       ] = await conn.query(
@@ -67,18 +73,17 @@ const scheduleAdditionOfNewDates = async (req, res, next) => {
 
       const [insertIntoScheduleTable] = await conn.query(
         `
-          INSERT INTO schedule(datesId) VALUES(?)
+          INSERT INTO schedules(datesId) VALUES(?)
         `,
         [lastInsertedDatesId],
       );
 
       const lastInsertedScheduleId = insertIntoScheduleTable.insertId;
-
       // INSERT BATCH RECORDS TO SCHEDULE_DRIVERS TABLE
       const [
         rowsToBeCopiedToScheduleDrivers,
       ] = await conn.query(`SELECT * FROM schedule_drivers WHERE scheduleId = ?`, [
-        currentScheduleId,
+        currentScheduleId?.[0]?.id,
       ]);
 
       const insertQueryIntoScheduleDrivers =
@@ -99,7 +104,7 @@ const scheduleAdditionOfNewDates = async (req, res, next) => {
       const [
         rowsToBeCopiedToScheduleRegions,
       ] = await conn.query(`SELECT * FROM schedule_regions WHERE scheduleId = ?`, [
-        currentScheduleId,
+        currentScheduleId?.[0]?.id,
       ]);
 
       const insertQueryIntoScheduleRegions =
@@ -115,9 +120,9 @@ const scheduleAdditionOfNewDates = async (req, res, next) => {
       await conn.query(insertQueryIntoScheduleRegions, [
         valuesToBeInsertedToScheduleRegions,
       ]);
-    }
 
-    await conn.commit();
+      await conn.commit();
+    }
 
     res.sendStatus(200);
   } catch (error) {
