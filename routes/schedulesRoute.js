@@ -10,5 +10,10 @@ router.post(
   [verifyToken],
   Schedules.addDraggableItemInCurrentSchedule,
 );
+router.post(
+  '/current/removeItem',
+  [verifyToken],
+  Schedules.removeDraggableItemFromCurrentSchedule,
+);
 
 module.exports = router;

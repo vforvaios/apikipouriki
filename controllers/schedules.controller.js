@@ -1,6 +1,9 @@
 const db = require('../services/db');
 const config = require('../config');
-const { ADDNEWITEMTOSCHEDULE } = require('../schemas/schedules.schema');
+const {
+  ADDNEWITEMTOSCHEDULE,
+  REMOVEITEMFROMSCHEDULE,
+} = require('../schemas/schedules.schema');
 
 require('dotenv').config();
 
@@ -183,4 +186,59 @@ const addDraggableItemInCurrentSchedule = async (req, res, next) => {
   }
 };
 
-module.exports = { getCurrentSchedule, addDraggableItemInCurrentSchedule };
+const removeDraggableItemFromCurrentSchedule = async (req, res, next) => {
+  try {
+    const { value, error } = REMOVEITEMFROMSCHEDULE.validate(req.body);
+    if (error) {
+      res.status(500).json({ error });
+      return false;
+    }
+
+    const {
+      day,
+      scheduleId,
+      carId,
+      item: { id, draggable_category_id },
+    } = req.body;
+    console.log('id=', id);
+    const existingRecordSql =
+      draggable_category_id === 1
+        ? 'SELECT * FROM schedule_drivers WHERE scheduleId=? AND numberOfDay=? AND carId=?'
+        : 'SELECT * FROM schedule_regions WHERE scheduleId=? AND numberOfDay=? AND carId=?';
+
+    const [existingRecord] = await db.query(existingRecordSql, [scheduleId, day, carId]);
+
+    const existingItemsInRecord = existingRecord?.[0]?.draggableItemIds.split(',');
+
+    const newItems = existingItemsInRecord
+      ?.filter((itm) => Number(itm) !== Number(id))
+      .map((idx) => Number(idx));
+    console.log(newItems);
+
+    const updateSql =
+      draggable_category_id === 1
+        ? newItems?.length
+          ? 'UPDATE schedule_drivers SET draggableItemIds=? WHERE id=?'
+          : 'DELETE FROM schedule_drivers WHERE id=?'
+        : newItems?.length
+        ? 'UPDATE schedule_regions SET draggableItemIds=? WHERE id=?'
+        : 'DELETE FROM schedule_regions WHERE id=?';
+
+    await db.query(
+      updateSql,
+      newItems?.length
+        ? [newItems?.join(','), existingRecord?.[0]?.id]
+        : [existingRecord?.[0]?.id],
+    );
+    res.status(200).json({ ok: true });
+  } catch (error) {
+    res.status(500).json({ error: 'Κάτι πήγε στραβά.' });
+    next(error);
+  }
+};
+
+module.exports = {
+  getCurrentSchedule,
+  addDraggableItemInCurrentSchedule,
+  removeDraggableItemFromCurrentSchedule,
+};
