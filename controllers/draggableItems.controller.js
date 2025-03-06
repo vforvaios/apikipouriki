@@ -1,4 +1,6 @@
 const db = require('../services/db');
+const config = require('../config');
+const { ADDDRAGGABLEITEMSCHEMA } = require('../schemas/draggables.schema');
 require('dotenv').config();
 
 const getAllActiveDraggableItems = async (req, res, next) => {
@@ -68,4 +70,34 @@ const getAllActiveDraggableItems = async (req, res, next) => {
   }
 };
 
-module.exports = { getAllActiveDraggableItems };
+const addEditDraggableItem = async (req, res, next) => {
+  try {
+    const typeOfAction = req.type === 'create' ? 1 : 0;
+    const { value, error } = typeOfAction
+      ? ADDDRAGGABLEITEMSCHEMA.validate(req.body)
+      : ADDDRAGGABLEITEMSCHEMA.validate(req.body);
+
+    if (error) {
+      res.status(500).json({ error: config.messages.error });
+      return false;
+    }
+
+    const { draggable_category_id, name, isActive } = req.body;
+
+    await db.query(
+      `
+      INSERT INTO draggable_items(draggable_category_id, name, isActive) VALUES(?,?,?)
+      `,
+      [draggable_category_id, name, isActive],
+    );
+
+    res.status(200).json({ ok: true });
+  } catch (error) {
+    res.status(500).json({
+      error,
+    });
+    next(error);
+  }
+};
+
+module.exports = { getAllActiveDraggableItems, addEditDraggableItem };
