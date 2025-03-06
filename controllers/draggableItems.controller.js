@@ -22,6 +22,7 @@ const getAllActiveDraggableItems = async (req, res, next) => {
             a.id as draggable_item_id, 
             a.draggable_category_id as draggable_category_id,
             a.name as draggable_name,
+            a.isActive as draggable_isActive,
             b.name as draggable_category_name 
             FROM draggable_items a
             INNER JOIN draggable_categories b on b.id = a.draggable_category_id
@@ -48,6 +49,8 @@ const getAllActiveDraggableItems = async (req, res, next) => {
               .map((d) => ({
                 itemId: d.draggable_item_id,
                 itemName: d.draggable_name,
+                draggableCategory: d.draggable_category_id,
+                isActive: d.draggable_isActive,
               })),
           },
         }),
