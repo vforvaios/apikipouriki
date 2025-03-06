@@ -84,14 +84,14 @@ const addEditDraggableItem = async (req, res, next) => {
 
     const { draggable_category_id, name, isActive } = req.body;
 
-    await db.query(
+    const [insertedDraggableItem] = await db.query(
       `
       INSERT INTO draggable_items(draggable_category_id, name, isActive) VALUES(?,?,?)
       `,
       [draggable_category_id, name, isActive],
     );
 
-    res.status(200).json({ ok: true });
+    res.status(200).json({ id: insertedDraggableItem?.insertId });
   } catch (error) {
     res.status(500).json({
       error,
