@@ -1,4 +1,5 @@
 const config = {
+  numberOfDaysInEachWeek: 6,
   db: {
     /* don't expose password or any sensitive info, done only for demo */
     // connectionLimit: 7,

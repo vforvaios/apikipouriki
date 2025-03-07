@@ -1,3 +1,4 @@
+const config = require('../config');
 const db = require('../services/db');
 require('dotenv').config();
 
@@ -46,7 +47,7 @@ const scheduleAdditionOfNewDates = async (req, res, next) => {
 
     const lastMondayInDb = new Date(secondFridayOfTheTwoWeeks?.[0]?.startDate2);
     const temp = new Date(secondFridayOfTheTwoWeeks?.[0]?.startDate2);
-    temp.setDate(temp.getDate() + 5);
+    temp.setDate(temp.getDate() + config.numberOfDaysInEachWeek);
 
     const firstUpcomingMonday = new Date(
       lastMondayInDb.setDate(lastMondayInDb.getDate() + 7),
