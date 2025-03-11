@@ -5,7 +5,8 @@ const DraggableItems = require('../controllers/draggableItems.controller');
 
 const router = express.Router();
 
-router.get('/', DraggableItems.getAllActiveDraggableItems);
+router.get('/', DraggableItems.getAllDraggableItems);
+router.get('/active', DraggableItems.getAllActiveDraggableItems);
 router.post('/item', [verifyToken], DraggableItems.addEditDraggableItem);
 
 module.exports = router;

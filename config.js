@@ -22,7 +22,6 @@ const config = {
     1: ' ASC ',
     2: ' DESC ',
   },
-  imageUrl: 'http://tierra-api.vforvaios.gr/images/',
   recordsPerPage: 12,
   messages: {
     error: 'Wrong data',
