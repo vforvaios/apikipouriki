@@ -1,6 +1,9 @@
 const db = require('../services/db');
 const config = require('../config');
-const { ADDDRAGGABLEITEMSCHEMA } = require('../schemas/draggables.schema');
+const {
+  ADDDRAGGABLEITEMSCHEMA,
+  EDITDRAGGABLEITEMSCHEMA,
+} = require('../schemas/draggables.schema');
 require('dotenv').config();
 
 const getAllDraggableItems = async (req, res, next) => {
@@ -140,26 +143,40 @@ const getAllActiveDraggableItems = async (req, res, next) => {
 
 const addEditDraggableItem = async (req, res, next) => {
   try {
-    const typeOfAction = req.type === 'create' ? 1 : 0;
-    const { value, error } = typeOfAction
-      ? ADDDRAGGABLEITEMSCHEMA.validate(req.body)
-      : ADDDRAGGABLEITEMSCHEMA.validate(req.body);
+    const { value, error } =
+      req.body.type === 'create'
+        ? ADDDRAGGABLEITEMSCHEMA.validate(req.body)
+        : EDITDRAGGABLEITEMSCHEMA.validate(req.body);
 
     if (error) {
       res.status(500).json({ error: config.messages.error });
       return false;
     }
 
-    const { draggable_category_id, name, isActive } = req.body;
+    if (req.body.type === 'create') {
+      const { draggable_category_id, name, isActive, regionCategory } = req.body;
 
-    const [insertedDraggableItem] = await db.query(
-      `
-      INSERT INTO draggable_items(draggable_category_id, name, isActive) VALUES(?,?,?)
-      `,
-      [draggable_category_id, name, isActive],
-    );
+      const [insertedDraggableItem] = await db.query(
+        `
+        INSERT INTO draggable_items(draggable_category_id, name, isActive, region_category) VALUES(?,?,?,?)
+        `,
+        [draggable_category_id, name, isActive, regionCategory],
+      );
 
-    res.status(200).json({ id: insertedDraggableItem?.insertId });
+      res.status(200).json({ id: insertedDraggableItem?.insertId });
+    } else {
+      const { id, name, isActive, regionCategory } = req.body;
+
+      await db.query(
+        `
+        UPDATE draggable_items SET name=?, isActive=?, region_category=?
+        WHERE id=?
+        `,
+        [name, isActive, regionCategory, id],
+      );
+
+      res.status(200).json({ id });
+    }
   } catch (error) {
     res.status(500).json({
       error,
