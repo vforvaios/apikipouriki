@@ -7,6 +7,7 @@ const router = express.Router();
 
 router.get('/', DraggableItems.getAllDraggableItems);
 router.get('/active', DraggableItems.getAllActiveDraggableItems);
+router.get('/inactive', DraggableItems.getAllInActiveDraggableItems);
 router.post('/item', [verifyToken], DraggableItems.addEditDraggableItem);
 
 module.exports = router;
