@@ -8,6 +8,7 @@ const ADDNEWITEMTOSCHEDULE = Joi.object().keys({
     id: Joi.number().required(),
     draggableCategory: Joi.number().required(),
     name: Joi.string().required(),
+    regionCategory: Joi.number(),
   }),
 });
 
@@ -20,6 +21,8 @@ const REMOVEITEMFROMSCHEDULE = Joi.object().keys({
     draggable_category_id: Joi.number().required(),
     name: Joi.string().required(),
     isActive: Joi.number().required(),
+    region_category: Joi.number(),
+    isDone: Joi.boolean().allow(null, ''),
   }),
 });
 

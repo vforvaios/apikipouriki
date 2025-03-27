@@ -211,7 +211,6 @@ const removeDraggableItemFromCurrentSchedule = async (req, res, next) => {
       carId,
       item: { id, draggable_category_id },
     } = req.body;
-    console.log('id=', id);
     const existingRecordSql =
       draggable_category_id === 1
         ? 'SELECT * FROM schedule_drivers WHERE scheduleId=? AND numberOfDay=? AND carId=?'
@@ -220,11 +219,17 @@ const removeDraggableItemFromCurrentSchedule = async (req, res, next) => {
     const [existingRecord] = await db.query(existingRecordSql, [scheduleId, day, carId]);
 
     const existingItemsInRecord = existingRecord?.[0]?.draggableItemIds.split(',');
+    const existingNotDoneItemsInRecord = existingRecord?.[0]?.draggableItemIds_notDone
+      ? existingRecord?.[0]?.draggableItemIds_notDone.split(',')
+      : [];
 
     const newItems = existingItemsInRecord
       ?.filter((itm) => Number(itm) !== Number(id))
       .map((idx) => Number(idx));
-    console.log(newItems);
+
+    const newNotDoneItems = existingNotDoneItemsInRecord
+      ?.filter((itm) => Number(itm) !== Number(id))
+      .map((idx) => Number(idx));
 
     const updateSql =
       draggable_category_id === 1
@@ -232,13 +237,15 @@ const removeDraggableItemFromCurrentSchedule = async (req, res, next) => {
           ? 'UPDATE schedule_drivers SET draggableItemIds=? WHERE id=?'
           : 'DELETE FROM schedule_drivers WHERE id=?'
         : newItems?.length
-        ? 'UPDATE schedule_regions SET draggableItemIds=? WHERE id=?'
+        ? 'UPDATE schedule_regions SET draggableItemIds=?, draggableItemIds_notDone=? WHERE id=?'
         : 'DELETE FROM schedule_regions WHERE id=?';
 
     await db.query(
       updateSql,
       newItems?.length
-        ? [newItems?.join(','), existingRecord?.[0]?.id]
+        ? draggable_category_id === 1
+          ? [newItems?.join(','), existingRecord?.[0]?.id]
+          : [newItems?.join(','), newNotDoneItems?.join(','), existingRecord?.[0]?.id]
         : [existingRecord?.[0]?.id],
     );
     res.status(200).json({ ok: true });
