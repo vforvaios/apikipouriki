@@ -33,7 +33,8 @@ const getCurrentSchedule = async (req, res, next) => {
           COALESCE(sd.carId, sr.carId) AS carId,
           COALESCE(sd.numberOfDay, sr.numberOfDay) AS numberOfDay,
           COALESCE(sd.draggableItemIds, '') AS drivers,
-          COALESCE(sr.draggableItemIds, '') AS regions
+          COALESCE(sr.draggableItemIds, '') AS regions,
+          COALESCE(sr.draggableItemIds_notDone, '') AS regionsNotDone
       FROM schedule_drivers sd
       LEFT JOIN schedule_regions sr 
           ON sd.scheduleId = sr.scheduleId 
@@ -48,7 +49,8 @@ const getCurrentSchedule = async (req, res, next) => {
           COALESCE(sd.carId, sr.carId) AS carId,
           COALESCE(sd.numberOfDay, sr.numberOfDay) AS numberOfDay,
           COALESCE(sd.draggableItemIds, '') AS drivers,
-          COALESCE(sr.draggableItemIds, '') AS regions
+          COALESCE(sr.draggableItemIds, '') AS regions,
+          COALESCE(sr.draggableItemIds_notDone, '') AS regionsNotDone
       FROM schedule_regions sr
       LEFT JOIN schedule_drivers sd 
           ON sr.scheduleId = sd.scheduleId 
@@ -90,7 +92,16 @@ const getCurrentSchedule = async (req, res, next) => {
               `SELECT * FROM draggable_items WHERE id = ?`,
               [Number(region)],
             );
-            return result?.[0] ? result?.[0] : []; // Fallback object
+
+            return result?.[0]
+              ? {
+                  ...result?.[0],
+                  isDone: !curr2?.regionsNotDone
+                    ?.split(',')
+                    ?.map((i) => Number(i))
+                    ?.includes(result?.[0]?.id),
+                }
+              : []; // Fallback object
           }),
         );
 
