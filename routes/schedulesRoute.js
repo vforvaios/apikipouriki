@@ -15,5 +15,10 @@ router.post(
   [verifyToken],
   Schedules.removeDraggableItemFromCurrentSchedule,
 );
+router.post(
+  '/current/doneNotDoneItem',
+  [verifyToken],
+  Schedules.convertDraggableItemFromCurrentSchedule,
+);
 
 module.exports = router;
