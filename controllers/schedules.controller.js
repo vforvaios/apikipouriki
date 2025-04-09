@@ -1,8 +1,8 @@
 const db = require('../services/db');
-const config = require('../config');
 const {
   ADDNEWITEMTOSCHEDULE,
   REMOVEITEMFROMSCHEDULE,
+  CONVERTITEMFROMSCHEDULE,
 } = require('../schemas/schedules.schema');
 
 require('dotenv').config();
@@ -257,7 +257,7 @@ const removeDraggableItemFromCurrentSchedule = async (req, res, next) => {
 
 const convertDraggableItemFromCurrentSchedule = async (req, res, next) => {
   try {
-    const { value, error } = REMOVEITEMFROMSCHEDULE.validate(req.body);
+    const { value, error } = CONVERTITEMFROMSCHEDULE.validate(req.body);
     if (error) {
       res.status(500).json({ error });
       return false;
@@ -267,45 +267,26 @@ const convertDraggableItemFromCurrentSchedule = async (req, res, next) => {
       day,
       scheduleId,
       carId,
-      item: { id, draggable_category_id },
+      item: { id, isDone },
     } = req.body;
     const existingRecordSql =
-      draggable_category_id === 1
-        ? 'SELECT * FROM schedule_drivers WHERE scheduleId=? AND numberOfDay=? AND carId=?'
-        : 'SELECT * FROM schedule_regions WHERE scheduleId=? AND numberOfDay=? AND carId=?';
+      'SELECT * FROM schedule_regions WHERE scheduleId=? AND numberOfDay=? AND carId=?';
 
     const [existingRecord] = await db.query(existingRecordSql, [scheduleId, day, carId]);
 
-    const existingItemsInRecord = existingRecord?.[0]?.draggableItemIds.split(',');
     const existingNotDoneItemsInRecord = existingRecord?.[0]?.draggableItemIds_notDone
       ? existingRecord?.[0]?.draggableItemIds_notDone.split(',')
       : [];
 
-    const newItems = existingItemsInRecord
-      ?.filter((itm) => Number(itm) !== Number(id))
-      .map((idx) => Number(idx));
+    const newNotDoneItems = isDone
+      ? [...existingNotDoneItemsInRecord, id]
+      : existingNotDoneItemsInRecord
+          ?.filter((itm) => Number(itm) !== Number(id))
+          .map((idx) => Number(idx));
 
-    const newNotDoneItems = existingNotDoneItemsInRecord
-      ?.filter((itm) => Number(itm) !== Number(id))
-      .map((idx) => Number(idx));
+    const updateSql = 'UPDATE schedule_regions SET draggableItemIds_notDone=? WHERE id=?';
 
-    const updateSql =
-      draggable_category_id === 1
-        ? newItems?.length
-          ? 'UPDATE schedule_drivers SET draggableItemIds=? WHERE id=?'
-          : 'DELETE FROM schedule_drivers WHERE id=?'
-        : newItems?.length
-        ? 'UPDATE schedule_regions SET draggableItemIds=?, draggableItemIds_notDone=? WHERE id=?'
-        : 'DELETE FROM schedule_regions WHERE id=?';
-
-    await db.query(
-      updateSql,
-      newItems?.length
-        ? draggable_category_id === 1
-          ? [newItems?.join(','), existingRecord?.[0]?.id]
-          : [newItems?.join(','), newNotDoneItems?.join(','), existingRecord?.[0]?.id]
-        : [existingRecord?.[0]?.id],
-    );
+    await db.query(updateSql, [newNotDoneItems?.join(','), existingRecord?.[0]?.id]);
     res.status(200).json({ ok: true });
   } catch (error) {
     res.status(500).json({ error: 'Κάτι πήγε στραβά.' });
