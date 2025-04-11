@@ -5,6 +5,7 @@ const Schedules = require('../controllers/schedules.controller');
 const router = express.Router();
 
 router.get('/current', Schedules.getCurrentSchedule);
+router.get('/', Schedules.getAllSchedules);
 router.post(
   '/current/addItem',
   [verifyToken],

@@ -7,6 +7,24 @@ const {
 
 require('dotenv').config();
 
+const getAllSchedules = async (req, res, next) => {
+  try {
+    const [allSchedules] = await db.query(
+      `
+      SELECT * 
+      FROM schedules s 
+      INNER JOIN dates d ON s.datesId = d.id 
+      ORDER BY s.id DESC
+      `,
+    );
+
+    res.status(200).json(allSchedules);
+  } catch (error) {
+    res.status(500).json({ error: 'Κάτι πήγε στραβά!' });
+    next(error);
+  }
+};
+
 const getCurrentSchedule = async (req, res, next) => {
   try {
     const [currentDates] = await db.query(
@@ -295,6 +313,7 @@ const convertDraggableItemFromCurrentSchedule = async (req, res, next) => {
 };
 
 module.exports = {
+  getAllSchedules,
   getCurrentSchedule,
   addDraggableItemInCurrentSchedule,
   removeDraggableItemFromCurrentSchedule,
