@@ -3,6 +3,7 @@ const {
   ADDNEWITEMTOSCHEDULE,
   REMOVEITEMFROMSCHEDULE,
   CONVERTITEMFROMSCHEDULE,
+  SETDEFAULTSCHEDULESCHEMA,
 } = require('../schemas/schedules.schema');
 
 require('dotenv').config();
@@ -11,7 +12,8 @@ const getAllSchedules = async (req, res, next) => {
   try {
     const [allSchedules] = await db.query(
       `
-      SELECT * 
+      SELECT s.id as id, s.datesId as datesId, d.startDate1 as startDate1, 
+             d.startDate2 as startDate2, d.isActive as isActive, s.isDefault as isDefault, d.id as dId 
       FROM schedules s 
       INNER JOIN dates d ON s.datesId = d.id 
       ORDER BY s.id DESC
@@ -312,10 +314,39 @@ const convertDraggableItemFromCurrentSchedule = async (req, res, next) => {
   }
 };
 
+const setDefaultSchedule = async (req, res, next) => {
+  let conn = await db.getConnection();
+  try {
+    await conn.beginTransaction();
+    const { value, error } = SETDEFAULTSCHEDULESCHEMA.validate(req.body);
+    if (error) {
+      res.status(500).json({ error });
+      return false;
+    }
+
+    await conn.query(`UPDATE schedules SET isDefault=0 WHERE 1=1`);
+
+    await conn.query(`UPDATE schedules SET isDefault=1 WHERE id=?`, [
+      req.body.scheduleId,
+    ]);
+
+    await conn.commit();
+
+    res.status(200).json({ ok: true });
+  } catch (error) {
+    await conn.rollback();
+    res.status(500).json({ error: 'Κάτι πήγε στραβά.' });
+    next(error);
+  } finally {
+    conn.release();
+  }
+};
+
 module.exports = {
   getAllSchedules,
   getCurrentSchedule,
   addDraggableItemInCurrentSchedule,
   removeDraggableItemFromCurrentSchedule,
   convertDraggableItemFromCurrentSchedule,
+  setDefaultSchedule,
 };

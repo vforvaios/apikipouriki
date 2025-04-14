@@ -40,8 +40,13 @@ const CONVERTITEMFROMSCHEDULE = Joi.object().keys({
   }),
 });
 
+const SETDEFAULTSCHEDULESCHEMA = Joi.object().keys({
+  scheduleId: Joi.number().required(),
+});
+
 module.exports = {
   ADDNEWITEMTOSCHEDULE,
   REMOVEITEMFROMSCHEDULE,
   CONVERTITEMFROMSCHEDULE,
+  SETDEFAULTSCHEDULESCHEMA,
 };
