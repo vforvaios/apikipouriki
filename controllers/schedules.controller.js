@@ -342,6 +342,114 @@ const setDefaultSchedule = async (req, res, next) => {
   }
 };
 
+const getScheduleById = async (req, res, next) => {
+  try {
+    const [currentSchedule] = await db.query(
+      `
+      SELECT 
+          COALESCE(sd.scheduleId, sr.scheduleId) AS scheduleId,
+          COALESCE(sd.carId, sr.carId) AS carId,
+          COALESCE(sd.numberOfDay, sr.numberOfDay) AS numberOfDay,
+          COALESCE(sd.draggableItemIds, '') AS drivers,
+          COALESCE(sr.draggableItemIds, '') AS regions,
+          COALESCE(sr.draggableItemIds_notDone, '') AS regionsNotDone
+      FROM schedule_drivers sd
+      LEFT JOIN schedule_regions sr 
+          ON sd.scheduleId = sr.scheduleId 
+          AND sd.carId = sr.carId 
+          AND sd.numberOfDay = sr.numberOfDay
+      WHERE sd.scheduleId = ?
+
+      UNION
+
+      SELECT 
+          COALESCE(sd.scheduleId, sr.scheduleId) AS scheduleId,
+          COALESCE(sd.carId, sr.carId) AS carId,
+          COALESCE(sd.numberOfDay, sr.numberOfDay) AS numberOfDay,
+          COALESCE(sd.draggableItemIds, '') AS drivers,
+          COALESCE(sr.draggableItemIds, '') AS regions,
+          COALESCE(sr.draggableItemIds_notDone, '') AS regionsNotDone
+      FROM schedule_regions sr
+      LEFT JOIN schedule_drivers sd 
+          ON sr.scheduleId = sd.scheduleId 
+          AND sr.carId = sd.carId 
+          AND sr.numberOfDay = sd.numberOfDay
+      WHERE sr.scheduleId = ?
+
+      `,
+      [req.params.id, req.params.id],
+    );
+
+    let newReturnedData = {};
+
+    const newObjByDayAndByCar = await currentSchedule.reduce(async (accPromise, curr) => {
+      const acc = await accPromise; // Wait for previous accumulator to resolve
+
+      const filteredDays = currentSchedule
+        .filter((day) => day.numberOfDay === curr.numberOfDay)
+        .sort((a, b) => a.numberOfDay - b.numberOfDay);
+
+      const carsData = await filteredDays.reduce(async (acc2Promise, curr2) => {
+        const acc2 = await acc2Promise; // Wait for previous accumulator to resolve
+
+        // Fetch drivers
+        const drivers = await Promise.all(
+          curr2.drivers.split(',').map(async (driver) => {
+            const [result] = await db.query(
+              `SELECT * FROM draggable_items WHERE id = ?`,
+              [Number(driver)],
+            );
+            return result?.[0] ? result?.[0] : []; // Fallback object
+          }),
+        );
+
+        // Fetch regions
+        const regions = await Promise.all(
+          curr2.regions.split(',').map(async (region) => {
+            const [result] = await db.query(
+              `SELECT * FROM draggable_items WHERE id = ?`,
+              [Number(region)],
+            );
+
+            return result?.[0]
+              ? {
+                  ...result?.[0],
+                  isDone: !curr2?.regionsNotDone
+                    ?.split(',')
+                    ?.map((i) => Number(i))
+                    ?.includes(result?.[0]?.id),
+                }
+              : []; // Fallback object
+          }),
+        );
+
+        return {
+          ...acc2,
+          cars: {
+            ...acc2.cars,
+            [curr2.carId]: { drivers: drivers?.flat(), regions: regions?.flat() },
+          },
+        };
+      }, Promise.resolve({}));
+
+      return {
+        ...acc,
+        [curr.numberOfDay]: carsData,
+      };
+    }, Promise.resolve({}));
+
+    newReturnedData = {
+      ...newReturnedData,
+      scheduleId: req.params.id,
+      days: newObjByDayAndByCar,
+    };
+
+    res.status(200).json({ currentSchedule: newReturnedData });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getAllSchedules,
   getCurrentSchedule,
@@ -349,4 +457,5 @@ module.exports = {
   removeDraggableItemFromCurrentSchedule,
   convertDraggableItemFromCurrentSchedule,
   setDefaultSchedule,
+  getScheduleById,
 };
