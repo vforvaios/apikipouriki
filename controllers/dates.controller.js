@@ -23,6 +23,34 @@ const getLastDates = async (req, res, next) => {
   }
 };
 
+const getDatesByScheduleId = async (req, res, next) => {
+  try {
+    const scheduleId = req.params.id;
+    const [datesId] = await db.query(
+      `
+      SELECT datesId FROM schedules WHERE id=?
+      `,
+      [scheduleId],
+    );
+
+    const [dates] = await db.query(
+      `SELECT id, startDate1, startDate2, isActive 
+       FROM dates WHERE id=?
+       `,
+      [datesId?.[0]?.datesId],
+    );
+
+    res.status(200).json({
+      dates,
+    });
+  } catch (error) {
+    res.status(401).json({
+      error,
+    });
+    next(error);
+  }
+};
+
 const scheduleAdditionOfNewDates = async (req, res, next) => {
   let conn = await db.getConnection();
 
@@ -137,4 +165,4 @@ const scheduleAdditionOfNewDates = async (req, res, next) => {
   }
 };
 
-module.exports = { getLastDates, scheduleAdditionOfNewDates };
+module.exports = { getLastDates, getDatesByScheduleId, scheduleAdditionOfNewDates };
