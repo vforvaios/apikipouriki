@@ -51,26 +51,26 @@ const getDatesByScheduleId = async (req, res, next) => {
   }
 };
 
+// THIS IS THE CRON JOB UPDATING THE DATES OF THE UPCOMING SCHEDULE
 const scheduleAdditionOfNewDates = async (req, res, next) => {
   let conn = await db.getConnection();
-
   try {
     const now = new Date();
+
+    const [currentScheduleId] = await conn.query(
+      `
+        SELECT id FROM schedules WHERE isDefault=?
+      `,
+      [1],
+    );
+
     const [secondFridayOfTheTwoWeeks] = await conn.query(
       `
         SELECT id, startDate2 
          FROM dates WHERE isActive=?
-         ORDER BY id desc 
-         LIMIT 1
+          AND id=?
         `,
-      [1],
-    );
-
-    const [currentScheduleId] = await conn.query(
-      `
-        SELECT id FROM schedules WHERE datesId=?
-      `,
-      [secondFridayOfTheTwoWeeks?.[0]?.id],
+      [1, currentScheduleId?.[0]?.datesId],
     );
 
     const lastMondayInDb = new Date(secondFridayOfTheTwoWeeks?.[0]?.startDate2);

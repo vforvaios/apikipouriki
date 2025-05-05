@@ -5,6 +5,6 @@ const router = express.Router();
 
 router.get('/', Dates.getLastDates);
 router.get('/:id', Dates.getDatesByScheduleId);
-router.get('/schedule', Dates.scheduleAdditionOfNewDates);
+router.get('/updateupcoming/schedule', Dates.scheduleAdditionOfNewDates);
 
 module.exports = router;
