@@ -68,9 +68,8 @@ const scheduleAdditionOfNewDates = async (req, res, next) => {
       `
         SELECT id, startDate2 
          FROM dates WHERE isActive=?
-          AND id=?
         `,
-      [1, currentScheduleId?.[0]?.datesId],
+      [1],
     );
 
     const lastMondayInDb = new Date(secondFridayOfTheTwoWeeks?.[0]?.startDate2);
@@ -106,6 +105,8 @@ const scheduleAdditionOfNewDates = async (req, res, next) => {
         `,
         [lastInsertedDatesId],
       );
+      // res.sendStatus(200);
+      // return false;
 
       const lastInsertedScheduleId = insertIntoScheduleTable.insertId;
       // INSERT BATCH RECORDS TO SCHEDULE_DRIVERS TABLE
