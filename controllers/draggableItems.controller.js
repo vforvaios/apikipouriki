@@ -6,6 +6,20 @@ const {
 } = require('../schemas/draggables.schema');
 require('dotenv').config();
 
+const getSearchDraggableItems = async (req, res, next) => {
+  try {
+    const isActive = req.query.active;
+    const categoryBeingSearched = req.query.innerItem;
+
+    console.log(isActive);
+    console.log(categoryBeingSearched);
+
+    res.status(200).json({});
+  } catch (error) {
+    next(error);
+  }
+};
+
 const getAllDraggableItems = async (req, res, next) => {
   let conn = await db.getConnection();
   try {
@@ -259,4 +273,5 @@ module.exports = {
   getAllActiveDraggableItems,
   addEditDraggableItem,
   getAllInActiveDraggableItems,
+  getSearchDraggableItems,
 };
