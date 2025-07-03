@@ -7,16 +7,77 @@ const {
 require('dotenv').config();
 
 const getSearchDraggableItems = async (req, res, next) => {
+  let conn = await db.getConnection();
   try {
-    const isActive = req.query.active;
-    const categoryBeingSearched = req.query.innerItem;
+    await conn.beginTransaction();
+    // const isActive = req.query.active;
+    // const categoryBeingSearched = req.query.innerItem;
+    const search = req.query.term;
 
-    console.log(isActive);
-    console.log(categoryBeingSearched);
+    const [draggableCategories] = await db.query(
+      `
+        SELECT *
+        FROM draggable_categories
+        WHERE isActive=?
+    `,
+      [1],
+    );
 
-    res.status(200).json({});
+    let draggableItems = [];
+    const response = draggableCategories?.map(async (di) => {
+      const [itm] = await conn.query(
+        `SELECT 
+            a.id as draggable_item_id, 
+            a.draggable_category_id as draggable_category_id,
+            a.name as draggable_name,
+            a.isActive as draggable_isActive, a.region_category as region_category,
+            b.name as draggable_category_name 
+            FROM draggable_items a
+            INNER JOIN draggable_categories b on b.id = a.draggable_category_id
+            WHERE draggable_category_id=?`,
+        [di.id],
+      );
+      draggableItems.push(itm);
+    });
+
+    await Promise.all(response);
+
+    await conn.commit();
+
+    const finalResults = draggableItems.flat();
+
+    const items = finalResults?.reduce(
+      (acc, curr) => ({
+        ...acc,
+        [curr.draggable_category_name]: {
+          id: curr.draggable_category_id,
+          content: finalResults
+            .filter((itm) => itm.draggable_category_id === curr.draggable_category_id)
+            .map((d) => {
+              return d.draggable_name.toLowerCase().includes(search.toLowerCase())
+                ? {
+                    itemId: d.draggable_item_id,
+                    itemName: d.draggable_name,
+                    draggableCategory: d.draggable_category_id,
+                    regionCategory: d.region_category,
+                    isActive: d.draggable_isActive,
+                  }
+                : null;
+            })
+            .filter((i) => i),
+        },
+      }),
+      {},
+    );
+
+    res.status(200).json({
+      items,
+    });
   } catch (error) {
+    await conn.rollback();
     next(error);
+  } finally {
+    conn.release();
   }
 };
 
