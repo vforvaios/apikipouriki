@@ -10,8 +10,7 @@ const getSearchDraggableItems = async (req, res, next) => {
   let conn = await db.getConnection();
   try {
     await conn.beginTransaction();
-    // const isActive = req.query.active;
-    // const categoryBeingSearched = req.query.innerItem;
+
     const search = req.query.term;
 
     const [draggableCategories] = await db.query(
@@ -34,7 +33,7 @@ const getSearchDraggableItems = async (req, res, next) => {
             b.name as draggable_category_name 
             FROM draggable_items a
             INNER JOIN draggable_categories b on b.id = a.draggable_category_id
-            WHERE draggable_category_id=?`,
+            WHERE draggable_category_id=? ORDER BY draggable_name`,
         [di.id],
       );
       draggableItems.push(itm);
@@ -106,7 +105,8 @@ const getAllDraggableItems = async (req, res, next) => {
             b.name as draggable_category_name 
             FROM draggable_items a
             INNER JOIN draggable_categories b on b.id = a.draggable_category_id
-            WHERE draggable_category_id=?`,
+            WHERE draggable_category_id=? 
+            ORDER BY draggable_name `,
         [di.id],
       );
       draggableItems.push(itm);
@@ -174,7 +174,7 @@ const getAllActiveDraggableItems = async (req, res, next) => {
             b.name as draggable_category_name 
             FROM draggable_items a
             INNER JOIN draggable_categories b on b.id = a.draggable_category_id
-            WHERE draggable_category_id=? AND a.isActive=? AND b.isActive=?`,
+            WHERE draggable_category_id=? AND a.isActive=? AND b.isActive=? ORDER BY draggable_name`,
         [di.id, 1, 1],
       );
       draggableItems.push(itm);
@@ -242,7 +242,7 @@ const getAllInActiveDraggableItems = async (req, res, next) => {
             b.name as draggable_category_name 
             FROM draggable_items a
             INNER JOIN draggable_categories b on b.id = a.draggable_category_id
-            WHERE draggable_category_id=? AND (a.isActive=? OR b.isActive=?)`,
+            WHERE draggable_category_id=? AND (a.isActive=? OR b.isActive=?) ORDER BY draggable_name`,
         [di.id, 0, 0],
       );
       draggableItems.push(itm);
