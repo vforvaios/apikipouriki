@@ -219,9 +219,10 @@ const addDraggableItemInCurrentSchedule = async (req, res, next) => {
 
 const removeDraggableItemFromCurrentSchedule = async (req, res, next) => {
   try {
+    console.log(req.body);
     const { value, error } = REMOVEITEMFROMSCHEDULE.validate(req.body);
     if (error) {
-      res.status(500).json({ error });
+      res.status(500).json({ error: 'Κάτι πήγε στραβά' });
       return false;
     }
 

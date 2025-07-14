@@ -24,13 +24,34 @@ const getAllActiveCars = async (req, res, next) => {
 };
 
 const updateAllCars = async (req, res, next) => {
+  let conn = await db.getConnection();
   try {
-    res.status(200).json({});
+    await conn.beginTransaction();
+
+    const cars = req.body;
+
+    const response = cars.map(async (car) => {
+      await conn.query(
+        `
+        UPDATE cars SET name=? WHERE id=?
+        `,
+        [car.name, car.id],
+      );
+    });
+
+    await Promise.all(response);
+
+    await conn.commit();
+
+    res.status(200).json({ message: 'Όλες οι αλλαγές σας αποθηκεύτηκαν' });
   } catch (error) {
+    await conn.rollback();
     res.status(401).json({
       error,
     });
     next(error);
+  } finally {
+    conn.release();
   }
 };
 
