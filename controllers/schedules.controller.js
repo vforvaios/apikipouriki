@@ -451,6 +451,131 @@ const getScheduleById = async (req, res, next) => {
   }
 };
 
+//  =============================================
+const getCurrentScheduleMorePerformant = async (req, res, next) => {
+  try {
+    // 1. Get the latest active date
+    const [
+      currentDates,
+    ] = await db.query(
+      `SELECT id FROM dates WHERE isActive = ? ORDER BY id DESC LIMIT 1`,
+      [1],
+    );
+    const dateId = currentDates?.[0]?.id;
+    if (!dateId) return res.status(404).json({ error: 'No active date found' });
+
+    // 2. Get the latest schedule for the date
+    const [latestSchedule] = await db.query(
+      `SELECT id FROM schedules WHERE datesId = ?`,
+      [dateId],
+    );
+    const scheduleId = latestSchedule?.[0]?.id;
+    if (!scheduleId) return res.status(404).json({ error: 'No schedule found' });
+
+    // 3. Get the schedule data (drivers + regions)
+    const [scheduleData] = await db.query(
+      `
+      SELECT 
+          COALESCE(sd.scheduleId, sr.scheduleId) AS scheduleId,
+          COALESCE(sd.carId, sr.carId) AS carId,
+          COALESCE(sd.numberOfDay, sr.numberOfDay) AS numberOfDay,
+          COALESCE(sd.draggableItemIds, '') AS drivers,
+          COALESCE(sr.draggableItemIds, '') AS regions,
+          COALESCE(sr.draggableItemIds_notDone, '') AS regionsNotDone
+      FROM schedule_drivers sd
+      LEFT JOIN schedule_regions sr 
+          ON sd.scheduleId = sr.scheduleId 
+          AND sd.carId = sr.carId 
+          AND sd.numberOfDay = sr.numberOfDay
+      WHERE sd.scheduleId = ?
+
+      UNION
+
+      SELECT 
+          COALESCE(sd.scheduleId, sr.scheduleId) AS scheduleId,
+          COALESCE(sd.carId, sr.carId) AS carId,
+          COALESCE(sd.numberOfDay, sr.numberOfDay) AS numberOfDay,
+          COALESCE(sd.draggableItemIds, '') AS drivers,
+          COALESCE(sr.draggableItemIds, '') AS regions,
+          COALESCE(sr.draggableItemIds_notDone, '') AS regionsNotDone
+      FROM schedule_regions sr
+      LEFT JOIN schedule_drivers sd 
+          ON sr.scheduleId = sd.scheduleId 
+          AND sr.carId = sd.carId 
+          AND sr.numberOfDay = sd.numberOfDay
+      WHERE sr.scheduleId = ?
+      `,
+      [scheduleId, scheduleId],
+    );
+
+    // 4. Collect all draggableItem IDs
+    const allDriverIds = new Set();
+    const allRegionIds = new Set();
+
+    for (const row of scheduleData) {
+      row.drivers.split(',').forEach((id) => {
+        const n = Number(id);
+        if (!isNaN(n)) allDriverIds.add(n);
+      });
+
+      row.regions.split(',').forEach((id) => {
+        const n = Number(id);
+        if (!isNaN(n)) allRegionIds.add(n);
+      });
+    }
+
+    const allItemIds = [...new Set([...allDriverIds, ...allRegionIds])];
+    const [items] = await db.query(`SELECT * FROM draggable_items WHERE id IN (?)`, [
+      allItemIds,
+    ]);
+
+    const itemsMap = {};
+    for (const item of items) {
+      itemsMap[item.id] = item;
+    }
+
+    // 5. Build the response
+    const scheduleByDay = {};
+
+    for (const row of scheduleData) {
+      const day = row.numberOfDay;
+      const car = row.carId;
+      const regionNotDoneIds = row.regionsNotDone
+        ? row.regionsNotDone.split(',').map(Number)
+        : [];
+
+      const drivers = row.drivers
+        .split(',')
+        .map((id) => itemsMap[Number(id)])
+        .filter(Boolean);
+
+      const regions = row.regions
+        .split(',')
+        .map((id) => {
+          const item = itemsMap[Number(id)];
+          if (!item) return null;
+          return {
+            ...item,
+            isDone: !regionNotDoneIds.includes(item.id),
+          };
+        })
+        .filter(Boolean);
+
+      if (!scheduleByDay[day]) scheduleByDay[day] = { cars: {} };
+      scheduleByDay[day].cars[car] = { drivers, regions };
+    }
+
+    const result = {
+      scheduleId,
+      days: scheduleByDay,
+    };
+
+    res.status(200).json({ currentSchedule: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getAllSchedules,
   getCurrentSchedule,
@@ -459,4 +584,5 @@ module.exports = {
   convertDraggableItemFromCurrentSchedule,
   setDefaultSchedule,
   getScheduleById,
+  getCurrentScheduleMorePerformant,
 };
